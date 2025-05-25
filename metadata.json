@@ -1,0 +1,5 @@
+{
+  "name": "Gemini Abenteuerweber",
+  "description": "Ein dynamisches Textabenteuerspiel, unterstützt von Gemini und Imagen, bei dem deine Entscheidungen die Geschichte weben und Szenen mit KI-generierten Bildern zum Leben erwecken.",
+  "requestFramePermissions": []
+}
