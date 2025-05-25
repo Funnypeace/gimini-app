@@ -28,9 +28,8 @@ const App: React.FC = () => {
   const [gameHistory, setGameHistory] = useState<string[]>([]);
   const [step, setStep] = useState<number>(1);
 
-  // ----------- NEU: Toast-Benachrichtigung -----------
+  // Toast-Benachrichtigung
   const [notification, setNotification] = useState<string | null>(null);
-  // ---------------------------------------------------
 
   // 1. Nach Genre-Auswahl prüfen, ob ein Spielstand existiert
   useEffect(() => {
@@ -40,16 +39,15 @@ const App: React.FC = () => {
         const result = await loadGame(username, genre);
         setSpielstandExistiert(!!result.data && !!result.data.story);
         setIsLoading(false);
-        setLadeFrageGezeigt(false); // Zeige erst dann die Frage
+        setLadeFrageGezeigt(false);
       }
     };
     if (nameConfirmed && genre && !genreConfirmed) {
       checkForSavegame();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [username, genre, nameConfirmed]);
+  }, [username, genre, nameConfirmed, genreConfirmed]);
 
-  // 2. Spielstart-Logik (je nachdem, ob geladen oder neu)
+  // 2. Spielstart-Logik (immer explizit starten, nie automatisch nach Render!)
   const startGame = useCallback(async () => {
     if (!genre) return;
     setIsLoading(true);
@@ -64,7 +62,6 @@ const App: React.FC = () => {
         setGameHistory([initialSegment.sceneDescription]);
       }
     } catch (err) {
-      console.error("Fehler beim Starten des Spiels:", err);
       setError(err instanceof Error ? err.message : 'Ein unbekannter Fehler ist beim Starten des Spiels aufgetreten.');
     } finally {
       setIsLoading(false);
@@ -77,7 +74,7 @@ const App: React.FC = () => {
     setError(null);
     try {
       const result = await loadGame(username, genre);
-      if (result.data) {
+      if (result.data && result.data.story) {
         setCurrentStory(result.data.story);
         setGameHistory(result.data.history || []);
         setStep(result.data.history ? result.data.history.length + 1 : 1);
@@ -104,7 +101,6 @@ const App: React.FC = () => {
         setGameHistory(prev => [...prev, nextSegment.sceneDescription].slice(-5));
       }
     } catch (err) {
-      console.error("Fehler bei der Verarbeitung der Auswahl:", err);
       setError(err instanceof Error ? err.message : 'Ein unbekannter Fehler ist beim Fortsetzen der Geschichte aufgetreten.');
     } finally {
       setIsLoading(false);
@@ -167,7 +163,6 @@ const App: React.FC = () => {
               </button>
             ))}
           </div>
-          {/* Ladefrage: Existiert ein Spielstand? */}
           {isLoading && <div className="mt-4"><LoadingSpinner /></div>}
           {!isLoading && spielstandExistiert !== null && !ladeFrageGezeigt && (
             <div className="mt-6 flex flex-col items-center">
@@ -190,14 +185,14 @@ const App: React.FC = () => {
                     </button>
                     <button
                       className="px-6 py-2 bg-emerald-700 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow-md"
-                      onClick={() => {
+                      onClick={async () => {
                         setGenreConfirmed(true);
                         setLadeFrageGezeigt(true);
-                        setCurrentStory(null); // neues Abenteuer dann!
+                        setCurrentStory(null);
                         setGameHistory([]);
                         setStep(1);
                         setError(null);
-                        // startGame wird durch useEffect weiter unten gestartet!
+                        await startGame();
                       }}
                     >
                       Neues Abenteuer starten
@@ -212,13 +207,14 @@ const App: React.FC = () => {
                   </p>
                   <button
                     className="px-6 py-2 bg-emerald-700 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow-md"
-                    onClick={() => {
+                    onClick={async () => {
                       setGenreConfirmed(true);
                       setLadeFrageGezeigt(true);
                       setCurrentStory(null);
                       setGameHistory([]);
                       setStep(1);
                       setError(null);
+                      await startGame();
                     }}
                   >
                     Abenteuer starten
@@ -232,13 +228,7 @@ const App: React.FC = () => {
     );
   }
 
-  // Starte neues Abenteuer, falls genreConfirmed ist und kein Spiel geladen wurde
-  useEffect(() => {
-    if (genreConfirmed && !currentStory && !isLoading && !error) {
-      startGame();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [genreConfirmed, currentStory, isLoading]);
+  // Kein automatischer Spielstart mehr hier – nur noch per Button!
 
   const renderContent = () => {
     if (isLoading && !currentStory) {
@@ -296,7 +286,6 @@ const App: React.FC = () => {
                 />
               ))}
             </div>
-            {/* Speicher- & Lade-Buttons */}
             <div className="flex gap-3 justify-center mt-4">
               <button
                 className="px-4 py-2 bg-sky-800 hover:bg-sky-600 text-white rounded shadow"
@@ -328,7 +317,7 @@ const App: React.FC = () => {
             <p className="text-slate-300 mb-6">{currentStory.sceneDescription.includes("Das Ende.") ? "" : "Deine Reise hat ihren Abschluss erreicht."}</p>
             <button
               onClick={() => {
-                setGenreConfirmed(false); // Zurück zur Genre-Auswahl
+                setGenreConfirmed(false);
                 setCurrentStory(null);
                 setGameHistory([]);
                 setStep(1);
@@ -354,13 +343,11 @@ const App: React.FC = () => {
       <main className="w-full max-w-3xl bg-slate-800 bg-opacity-70 shadow-2xl rounded-xl p-6 md:p-8 backdrop-blur-md border border-slate-700">
         {renderContent()}
       </main>
-      {/* ----------- HIER: Toast/Notification anzeigen ----------- */}
       {notification && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg text-lg z-50 animate-fade-in">
           {notification}
         </div>
       )}
-      {/* -------------------------------------------------------- */}
       <footer className="mt-12 text-center text-sm text-slate-500">
         <p>&copy; {new Date().getFullYear()} KI-Geschichtenerzähler. Unterstützt von Gemini & Imagen.</p>
       </footer>
