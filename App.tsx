@@ -5,6 +5,7 @@ import StoryDisplay from './components/StoryDisplay';
 import ChoiceButton from './components/ChoiceButton';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorMessage from './components/ErrorMessage';
+import { saveGame, loadGame } from './services/savegameService';
 
 const genres = [
   "Drama", "Komödie", "Action", "Thriller", "Science-Fiction",
@@ -12,25 +13,24 @@ const genres = [
 ];
 
 const App: React.FC = () => {
-  // Name und Genre als neue States
   const [username, setUsername] = useState<string>('');
   const [nameConfirmed, setNameConfirmed] = useState(false);
 
   const [genre, setGenre] = useState<string | null>(null);
-
-  // Bisherige States
   const [currentStory, setCurrentStory] = useState<StorySegment | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [gameHistory, setGameHistory] = useState<string[]>([]);
+  const [step, setStep] = useState<number>(1); // <-- NEU: Zug-/Fragenzähler
 
-  // Start-Game jetzt abhängig von genre
+  // Start-Game abhängig von genre
   const startGame = useCallback(async () => {
     if (!genre) return;
     setIsLoading(true);
     setError(null);
     setGameHistory([]);
-    setCurrentStory(null); 
+    setCurrentStory(null);
+    setStep(1); // <-- NEU: Bei Spielstart Zähler zurücksetzen
     try {
       const initialSegment = await adventureService.getInitialScene(genre);
       setCurrentStory(initialSegment);
@@ -57,6 +57,7 @@ const App: React.FC = () => {
 
     setIsLoading(true);
     setError(null);
+    setStep(prev => prev + 1); // <-- NEU: Schritt erhöhen
     const previousSceneDescription = currentStory.sceneDescription;
 
     try {
@@ -130,7 +131,6 @@ const App: React.FC = () => {
     );
   }
 
-  // --- Rest bleibt wie gehabt, außer der Titel (schon geändert) ---
   const renderContent = () => {
     if (isLoading && !currentStory) {
       return <div className="flex flex-col items-center justify-center h-64"><LoadingSpinner /><p className="mt-4 text-lg">Dein Abenteuer wird gewoben...</p></div>;
@@ -154,6 +154,16 @@ const App: React.FC = () => {
 
     return (
       <>
+        {/* Name & Zug/Fragen-Zähler anzeigen */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-base text-sky-400 font-bold">
+            Spieler: {username}
+          </div>
+          <div className="text-base text-sky-400 font-bold">
+            Zug: {step}
+          </div>
+        </div>
+
         <StoryDisplay
           sceneDescription={currentStory.sceneDescription}
           imageUrl={currentStory.imageUrl}
@@ -163,16 +173,51 @@ const App: React.FC = () => {
         {isLoading && currentStory && <div className="flex items-center justify-center my-4"><LoadingSpinner /><p className="ml-2">Die Geschichte entfaltet sich...</p></div>}
         
         {!currentStory.isGameOver && !isLoading && (
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {currentStory.choices.map((choice, index) => (
-              <ChoiceButton
-                key={index}
-                text={choice}
-                onClick={() => handlePlayerChoice(choice)}
-                disabled={isLoading}
-              />
-            ))}
-          </div>
+          <>
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {currentStory.choices.map((choice, index) => (
+                <ChoiceButton
+                  key={index}
+                  text={choice}
+                  onClick={() => handlePlayerChoice(choice)}
+                  disabled={isLoading}
+                />
+              ))}
+            </div>
+            {/* Speicher- & Lade-Buttons */}
+            <div className="flex gap-3 justify-center mt-4">
+              <button
+                className="px-4 py-2 bg-sky-800 hover:bg-sky-600 text-white rounded shadow"
+                onClick={async () => {
+                  if (currentStory && genre) {
+                    const err = await saveGame(username, genre, currentStory, gameHistory);
+                    alert(err ? "Fehler beim Speichern!" : "Spielstand gespeichert!");
+                  }
+                }}
+                disabled={!currentStory}
+              >
+                Spielstand speichern
+              </button>
+              <button
+                className="px-4 py-2 bg-emerald-800 hover:bg-emerald-600 text-white rounded shadow"
+                onClick={async () => {
+                  const result = await loadGame(username);
+                  if (result.data) {
+                    setCurrentStory(result.data.story);
+                    setGameHistory(result.data.history || []);
+                    // setGenre(result.data.genre); // optional, falls du das Genre wechseln willst
+                    // Zugzähler nach gespeicherter History einstellen:
+                    setStep(result.data.history ? result.data.history.length + 1 : 1);
+                    alert("Spielstand geladen!");
+                  } else {
+                    alert("Kein gespeicherter Spielstand gefunden!");
+                  }
+                }}
+              >
+                Spielstand laden
+              </button>
+            </div>
+          </>
         )}
         {currentStory.isGameOver && !isLoading && (
           <div className="mt-8 text-center">
