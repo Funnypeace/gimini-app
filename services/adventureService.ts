@@ -2,7 +2,8 @@ import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { StorySegment, GeminiStoryResponse } from '../types';
 import { GEMINI_TEXT_MODEL_NAME, IMAGEN_MODEL_NAME, GEMINI_SYSTEM_INSTRUCTION_JSON } from '../constants';
 
-const API_KEY = process.env.API_KEY;
+const API_KEY = import.meta.env.VITE_API_KEY;
+
 if (!API_KEY) {
   console.error("API_KEY Umgebungsvariable nicht gefunden. Die Anwendung wird nicht korrekt funktionieren.");
 }
