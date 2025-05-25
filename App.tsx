@@ -6,6 +6,7 @@ import ChoiceButton from './components/ChoiceButton';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorMessage from './components/ErrorMessage';
 import { saveGame, loadGame } from './services/savegameService';
+import { Analytics } from '@vercel/analytics/react';
 
 const genres = [
   "Drama", "Komödie", "Action", "Thriller", "Science-Fiction",
@@ -15,23 +16,17 @@ const genres = [
 const App: React.FC = () => {
   const [username, setUsername] = useState<string>('');
   const [nameConfirmed, setNameConfirmed] = useState(false);
-
   const [genre, setGenre] = useState<string | null>(null);
   const [genreConfirmed, setGenreConfirmed] = useState(false);
-
   const [spielstandExistiert, setSpielstandExistiert] = useState<boolean | null>(null);
   const [ladeFrageGezeigt, setLadeFrageGezeigt] = useState(false);
-
   const [currentStory, setCurrentStory] = useState<StorySegment | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [gameHistory, setGameHistory] = useState<string[]>([]);
   const [step, setStep] = useState<number>(1);
-
-  // Toast-Benachrichtigung
   const [notification, setNotification] = useState<string | null>(null);
 
-  // 1. Nach Genre-Auswahl prüfen, ob ein Spielstand existiert
   useEffect(() => {
     const checkForSavegame = async () => {
       if (username && genre) {
@@ -47,7 +42,6 @@ const App: React.FC = () => {
     }
   }, [username, genre, nameConfirmed, genreConfirmed]);
 
-  // 2. Spielstart-Logik (immer explizit starten, nie automatisch nach Render!)
   const startGame = useCallback(async () => {
     if (!genre) return;
     setIsLoading(true);
@@ -107,7 +101,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Schrittweises Rendering: Name -> Genre -> ggf. Ladefrage -> Spiel
   if (!nameConfirmed) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex flex-col items-center p-4 sm:p-6 md:p-8">
@@ -134,6 +127,7 @@ const App: React.FC = () => {
             </button>
           </div>
         </main>
+        <Analytics />
       </div>
     );
   }
@@ -224,11 +218,10 @@ const App: React.FC = () => {
             </div>
           )}
         </main>
+        <Analytics />
       </div>
     );
   }
-
-  // Kein automatischer Spielstart mehr hier – nur noch per Button!
 
   const renderContent = () => {
     if (isLoading && !currentStory) {
@@ -253,17 +246,10 @@ const App: React.FC = () => {
 
     return (
       <>
-        {/* Name & Zug/Fragen-Zähler anzeigen */}
         <div className="flex items-center justify-between mb-4">
-          <div className="text-base text-sky-400 font-bold">
-            Spieler: {username}
-          </div>
-          <div className="text-base text-sky-400 font-bold">
-            Genre: {genre}
-          </div>
-          <div className="text-base text-sky-400 font-bold">
-            Zug: {step}
-          </div>
+          <div className="text-base text-sky-400 font-bold">Spieler: {username}</div>
+          <div className="text-base text-sky-400 font-bold">Genre: {genre}</div>
+          <div className="text-base text-sky-400 font-bold">Zug: {step}</div>
         </div>
 
         <StoryDisplay
@@ -351,6 +337,7 @@ const App: React.FC = () => {
       <footer className="mt-12 text-center text-sm text-slate-500">
         <p>&copy; {new Date().getFullYear()} KI-Geschichtenerzähler. Unterstützt von Gemini & Imagen.</p>
       </footer>
+      <Analytics />
     </div>
   );
 };
