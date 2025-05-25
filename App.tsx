@@ -17,20 +17,42 @@ const App: React.FC = () => {
   const [nameConfirmed, setNameConfirmed] = useState(false);
 
   const [genre, setGenre] = useState<string | null>(null);
+  const [genreConfirmed, setGenreConfirmed] = useState(false);
+
+  const [spielstandExistiert, setSpielstandExistiert] = useState<boolean | null>(null);
+  const [ladeFrageGezeigt, setLadeFrageGezeigt] = useState(false);
+
   const [currentStory, setCurrentStory] = useState<StorySegment | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [gameHistory, setGameHistory] = useState<string[]>([]);
-  const [step, setStep] = useState<number>(1); // <-- NEU: Zug-/Fragenzähler
+  const [step, setStep] = useState<number>(1);
 
-  // Start-Game abhängig von genre
+  // 1. Nach Genre-Auswahl prüfen, ob ein Spielstand existiert
+  useEffect(() => {
+    const checkForSavegame = async () => {
+      if (username && genre) {
+        setIsLoading(true);
+        const result = await loadGame(username, genre);
+        setSpielstandExistiert(!!result.data && !!result.data.story);
+        setIsLoading(false);
+        setLadeFrageGezeigt(false); // Zeige erst dann die Frage
+      }
+    };
+    if (nameConfirmed && genre && !genreConfirmed) {
+      checkForSavegame();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [username, genre, nameConfirmed]);
+
+  // 2. Spielstart-Logik (je nachdem, ob geladen oder neu)
   const startGame = useCallback(async () => {
     if (!genre) return;
     setIsLoading(true);
     setError(null);
     setGameHistory([]);
     setCurrentStory(null);
-    setStep(1); // <-- NEU: Bei Spielstart Zähler zurücksetzen
+    setStep(1);
     try {
       const initialSegment = await adventureService.getInitialScene(genre);
       setCurrentStory(initialSegment);
@@ -45,21 +67,32 @@ const App: React.FC = () => {
     }
   }, [genre]);
 
-  useEffect(() => {
-    if (genre) {
-      startGame();
+  const loadSavegame = useCallback(async () => {
+    if (!username || !genre) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await loadGame(username, genre);
+      if (result.data) {
+        setCurrentStory(result.data.story);
+        setGameHistory(result.data.history || []);
+        setStep(result.data.history ? result.data.history.length + 1 : 1);
+      } else {
+        setError("Kein gespeicherter Spielstand gefunden!");
+      }
+    } catch (err) {
+      setError("Fehler beim Laden des Spielstands.");
+    } finally {
+      setIsLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [genre]);
+  }, [username, genre]);
 
   const handlePlayerChoice = async (choice: string) => {
     if (!currentStory || currentStory.isGameOver) return;
-
     setIsLoading(true);
     setError(null);
-    setStep(prev => prev + 1); // <-- NEU: Schritt erhöhen
+    setStep(prev => prev + 1);
     const previousSceneDescription = currentStory.sceneDescription;
-
     try {
       const nextSegment = await adventureService.getNextScene(previousSceneDescription, choice, gameHistory);
       setCurrentStory(nextSegment);
@@ -74,7 +107,7 @@ const App: React.FC = () => {
     }
   };
 
-  // Schrittweises Rendering: Name -> Genre -> Spiel
+  // Schrittweises Rendering: Name -> Genre -> ggf. Ladefrage -> Spiel
   if (!nameConfirmed) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex flex-col items-center p-4 sm:p-6 md:p-8">
@@ -105,7 +138,7 @@ const App: React.FC = () => {
     );
   }
 
-  if (!genre) {
+  if (!genreConfirmed) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex flex-col items-center p-4 sm:p-6 md:p-8">
         <header className="mb-8 text-center">
@@ -120,16 +153,88 @@ const App: React.FC = () => {
               <button
                 key={g}
                 className="px-4 py-2 bg-emerald-700 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow transition duration-100"
-                onClick={() => setGenre(g)}
+                onClick={() => {
+                  setGenre(g);
+                  setSpielstandExistiert(null);
+                  setLadeFrageGezeigt(false);
+                }}
               >
                 {g}
               </button>
             ))}
           </div>
+          {/* Ladefrage: Existiert ein Spielstand? */}
+          {isLoading && <div className="mt-4"><LoadingSpinner /></div>}
+          {!isLoading && spielstandExistiert !== null && !ladeFrageGezeigt && (
+            <div className="mt-6 flex flex-col items-center">
+              {spielstandExistiert ? (
+                <>
+                  <p className="text-sky-300 text-lg mb-4">
+                    Für {username} im Genre {genre} wurde ein Spielstand gefunden.<br />
+                    Möchtest du diesen laden?
+                  </p>
+                  <div className="flex gap-4">
+                    <button
+                      className="px-6 py-2 bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-lg shadow-md"
+                      onClick={async () => {
+                        setGenreConfirmed(true);
+                        setLadeFrageGezeigt(true);
+                        await loadSavegame();
+                      }}
+                    >
+                      Spielstand laden
+                    </button>
+                    <button
+                      className="px-6 py-2 bg-emerald-700 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow-md"
+                      onClick={() => {
+                        setGenreConfirmed(true);
+                        setLadeFrageGezeigt(true);
+                        setCurrentStory(null); // neues Abenteuer dann!
+                        setGameHistory([]);
+                        setStep(1);
+                        setError(null);
+                        // startGame wird durch useEffect weiter unten gestartet!
+                      }}
+                    >
+                      Neues Abenteuer starten
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sky-300 text-lg mb-4">
+                    Kein Spielstand für {username} im Genre {genre} gefunden.<br />
+                    Starte ein neues Abenteuer!
+                  </p>
+                  <button
+                    className="px-6 py-2 bg-emerald-700 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow-md"
+                    onClick={() => {
+                      setGenreConfirmed(true);
+                      setLadeFrageGezeigt(true);
+                      setCurrentStory(null);
+                      setGameHistory([]);
+                      setStep(1);
+                      setError(null);
+                    }}
+                  >
+                    Abenteuer starten
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </main>
       </div>
     );
   }
+
+  // Starte neues Abenteuer, falls genreConfirmed ist und kein Spiel geladen wurde
+  useEffect(() => {
+    if (genreConfirmed && !currentStory && !isLoading && !error) {
+      startGame();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [genreConfirmed, currentStory, isLoading]);
 
   const renderContent = () => {
     if (isLoading && !currentStory) {
@@ -158,6 +263,9 @@ const App: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <div className="text-base text-sky-400 font-bold">
             Spieler: {username}
+          </div>
+          <div className="text-base text-sky-400 font-bold">
+            Genre: {genre}
           </div>
           <div className="text-base text-sky-400 font-bold">
             Zug: {step}
@@ -201,17 +309,7 @@ const App: React.FC = () => {
               <button
                 className="px-4 py-2 bg-emerald-800 hover:bg-emerald-600 text-white rounded shadow"
                 onClick={async () => {
-                  const result = await loadGame(username);
-                  if (result.data) {
-                    setCurrentStory(result.data.story);
-                    setGameHistory(result.data.history || []);
-                    // setGenre(result.data.genre); // optional, falls du das Genre wechseln willst
-                    // Zugzähler nach gespeicherter History einstellen:
-                    setStep(result.data.history ? result.data.history.length + 1 : 1);
-                    alert("Spielstand geladen!");
-                  } else {
-                    alert("Kein gespeicherter Spielstand gefunden!");
-                  }
+                  await loadSavegame();
                 }}
               >
                 Spielstand laden
@@ -225,8 +323,11 @@ const App: React.FC = () => {
             <p className="text-slate-300 mb-6">{currentStory.sceneDescription.includes("Das Ende.") ? "" : "Deine Reise hat ihren Abschluss erreicht."}</p>
             <button
               onClick={() => {
-                setGenre(null); // Zurück zur Genre-Auswahl
+                setGenreConfirmed(false); // Zurück zur Genre-Auswahl
                 setCurrentStory(null);
+                setGameHistory([]);
+                setStep(1);
+                setError(null);
               }}
               className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow-xl transition duration-150 ease-in-out transform hover:scale-105"
             >
