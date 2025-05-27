@@ -68,7 +68,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (currentStory) {
       setShowImage(false);
-      const timer = setTimeout(() => setShowImage(true), 3000); // 3 Sekunden Verzögerung
+      const timer = setTimeout(() => setShowImage(true), 1000); // 1 Sekunden Verzögerung
       return () => clearTimeout(timer);
     }
   }, [currentStory?.sceneDescription]); // sceneDescription wechselt bei neuem Text
