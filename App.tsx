@@ -37,6 +37,9 @@ const App: React.FC = () => {
   const [gameHistory, setGameHistory] = useState<string[]>([]);
   const [step, setStep] = useState<number>(1);
 
+  // NEU: Bild-Verzögerung
+  const [showImage, setShowImage] = useState<boolean>(true);
+
   // Toast-Benachrichtigung
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -60,6 +63,15 @@ const App: React.FC = () => {
       setNameConfirmed(true);
     }
   }, [user, mode]);
+
+  // Bild verzögert anzeigen, jedes Mal wenn eine neue Story geladen wird
+  useEffect(() => {
+    if (currentStory) {
+      setShowImage(false);
+      const timer = setTimeout(() => setShowImage(true), 3000); // 3 Sekunden Verzögerung
+      return () => clearTimeout(timer);
+    }
+  }, [currentStory?.sceneDescription]); // sceneDescription wechselt bei neuem Text
 
   // 1. Nach Genre-Auswahl prüfen, ob ein Spielstand existiert
   useEffect(() => {
@@ -339,8 +351,8 @@ const App: React.FC = () => {
 
         <StoryDisplay
           sceneDescription={currentStory.sceneDescription}
-          imageUrl={currentStory.imageUrl}
-          isLoadingImage={isLoading && !!currentStory.imagePrompt && !currentStory.imageUrl}
+          imageUrl={showImage ? currentStory.imageUrl : undefined}
+          isLoadingImage={showImage ? (isLoading && !!currentStory.imagePrompt && !currentStory.imageUrl) : false}
         />
         {error && <div className="my-4"><ErrorMessage message={error} /></div>}
         {isLoading && currentStory && <div className="flex items-center justify-center my-4"><LoadingSpinner /><p className="ml-2">Die Geschichte entfaltet sich...</p></div>}
