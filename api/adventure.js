@@ -6,10 +6,10 @@ export default async function handler(req, res) {
   }
 
   const { prompt } = req.body;
-  console.log("Prompt received:", prompt); // Logging für Vercel Logs
+  console.log("Prompt received:", prompt);
 
   const apiKey = process.env.GROQ_API_KEY;
-  console.log("API Key loaded:", !!apiKey); // Check, ob Key da ist (true/false)
+  console.log("API Key loaded:", !!apiKey);
 
   if (!apiKey) {
     return res.status(500).json({ error: "API Key missing on server" });
@@ -22,18 +22,21 @@ export default async function handler(req, res) {
       messages: [
         {
           role: "system",
-          content: "Du bist Claudio, ein kreativer Geschichtenerzähler. Generiere interaktive Geschichten als JSON-Objekt."
+          content: "Du bist Claudio, ein kreativer Geschichtenerzähler. Generiere kurze, prägnante interaktive Geschichten als JSON-Objekt. Alles auf Deutsch! Halte Antworten kompakt und fokussiert."
         },
         { role: "user", content: prompt }
       ],
-      model: "llama3-8b-8192",
-      temperature: 0.7,
-      max_tokens: 500
+      model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
+      temperature: parseFloat(process.env.GROQ_TEMPERATURE) || 0.2,
+      max_tokens: parseInt(process.env.GROQ_MAX_TOKENS) || 300,
+      top_p: 0.9,
+      frequency_penalty: 0.1,
+      presence_penalty: 0.1
     });
-    const responseText = completion.choices[0].message.content;
-    console.log("Groq response:", responseText); // Log die Raw-Response
 
-    // Robustes Parsing: Extrahiere JSON, falls umgeben von Text
+    const responseText = completion.choices[0].message.content;
+    console.log("Groq response:", responseText);
+
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     const jsonResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(responseText);
 
