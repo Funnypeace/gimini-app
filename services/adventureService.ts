@@ -20,12 +20,13 @@ export const adventureService = {
         body: JSON.stringify({ prompt })
       });
       if (!response.ok) {
-        throw new Error(await response.json().error);
+        const errorResponse = await response.json();
+        throw new Error(errorResponse.error || "Unbekannter Fehler beim API-Aufruf.");
       }
       return await response.json();
     } catch (error) {
       console.error("Error generating story:", error);
-      throw new Error("Hoppla! Abenteuer konnte nicht gestartet werden: Der Geschichtenerzähler scheint in Gedanken versunken zu sein. Das Abenteuer konnte nicht gestartet werden.");
+      throw new Error(`Hoppla! Abenteuer konnte nicht gestartet werden: ${error.message}`);
     }
   }
 };
