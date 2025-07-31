@@ -2,15 +2,15 @@ import { StorySegment } from "../types";
 
 export const adventureService = {
   getInitialScene: async (genre: string): Promise<StorySegment> => {
-    // 🚀 OPTIMIERT: Kürzerer, präziserer Prompt
-    const prompt = `Starte eine neue ${genre}-Abenteuergeschichte auf Deutsch. Kurz und prägnant! Max 2 Sätze Szene, dann 2-3 Optionen. JSON: { "sceneDescription": "Kurze Szene", "choices": ["Option 1", "Option 2"], "isGameOver": false }`;
+    // 🚀 Angepasst: Mehr Optionen, aber optimiert für Kosten
+    const prompt = `Starte eine neue ${genre}-Abenteuergeschichte auf Deutsch. Kurz und prägnant! Max 2 Sätze Szene, dann 3-4 Optionen. JSON: { "sceneDescription": "Kurze Szene", "choices": ["Option 1", "Option 2", "Option 3", "Option 4"], "isGameOver": false }`;
     return adventureService.generateStory(prompt);
   },
 
   getNextScene: async (previousScene: string, choice: string, history: string[]): Promise<StorySegment> => {
-    // 🚀 OPTIMIERT: Komprimierte Geschichte nur mit letzten 2 Elementen
+    // 🚀 Angepasst: Mehr Optionen, aber optimiert für Kosten
     const historySummary = history.slice(-2).join(" → ");
-    const prompt = `Fortsetzung: Vorher "${previousScene.substring(0, 100)}..." Wahl: "${choice}". Kurze neue Szene (max 2 Sätze) + 2-3 Optionen. JSON: { "sceneDescription": "Kurze neue Szene", "choices": ["Option 1", "Option 2"], "isGameOver": false }`;
+    const prompt = `Fortsetzung: Vorher "${previousScene.substring(0, 100)}..." Wahl: "${choice}". Kurze neue Szene (max 2 Sätze) + 3-4 Optionen. JSON: { "sceneDescription": "Kurze neue Szene", "choices": ["Option 1", "Option 2", "Option 3", "Option 4"], "isGameOver": false }`;
     return adventureService.generateStory(prompt);
   },
 
