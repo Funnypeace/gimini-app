@@ -1,6 +1,6 @@
 import Groq from "groq-sdk";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groq = new Groq({ apiKey: import.meta.env.VITE_GROQ_API_KEY });
 
 export const adventureService = {
   generateAdventure: async (prompt: string): Promise<string> => {
@@ -24,5 +24,3 @@ export const adventureService = {
     }
   }
 };
-
-// Falls es im Original weitere Funktionen gab (z.B. für Bilder oder Supabase), füge sie hier ins Objekt hinzu.
