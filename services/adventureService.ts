@@ -2,13 +2,15 @@ import { StorySegment } from "../types";
 
 export const adventureService = {
   getInitialScene: async (genre: string): Promise<StorySegment> => {
-    const prompt = `Starte eine neue interaktive Abenteuergeschichte im Genre ${genre}. Die Geschichte soll auf Deutsch sein, für Kinder geeignet, positiv und abenteuerlich. Beginne mit einer einleitenden Szene und gib 2-3 Auswahlmöglichkeiten am Ende. Returniere als JSON: { "sceneDescription": "Beschreibung der Szene", "choices": ["Option 1", "Option 2", "Option 3"], "isGameOver": false }`;
+    // 🚀 OPTIMIERT: Kürzerer, präziserer Prompt
+    const prompt = `Starte eine neue ${genre}-Abenteuergeschichte auf Deutsch. Kurz und prägnant! Max 2 Sätze Szene, dann 2-3 Optionen. JSON: { "sceneDescription": "Kurze Szene", "choices": ["Option 1", "Option 2"], "isGameOver": false }`;
     return adventureService.generateStory(prompt);
   },
 
   getNextScene: async (previousScene: string, choice: string, history: string[]): Promise<StorySegment> => {
-    const historySummary = history.join("\n");
-    const prompt = `Fortsetze die interaktive Abenteuergeschichte basierend auf der vorherigen Szene: "${previousScene}" und der Wahl des Spielers: "${choice}". Berücksichtige die Geschichte bisher: "${historySummary}". Halte es auf Deutsch, kinderfreundlich, positiv und abenteuerlich. Gib eine neue Szene und 2-3 neue Auswahlmöglichkeiten. Wenn die Geschichte endet, setze isGameOver auf true. Returniere als JSON: { "sceneDescription": "Neue Beschreibung", "choices": ["Option 1", "Option 2", "Option 3"], "isGameOver": false }`;
+    // 🚀 OPTIMIERT: Komprimierte Geschichte nur mit letzten 2 Elementen
+    const historySummary = history.slice(-2).join(" → ");
+    const prompt = `Fortsetzung: Vorher "${previousScene.substring(0, 100)}..." Wahl: "${choice}". Kurze neue Szene (max 2 Sätze) + 2-3 Optionen. JSON: { "sceneDescription": "Kurze neue Szene", "choices": ["Option 1", "Option 2"], "isGameOver": false }`;
     return adventureService.generateStory(prompt);
   },
 
@@ -19,10 +21,12 @@ export const adventureService = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt })
       });
+
       if (!response.ok) {
         const errorResponse = await response.json();
         throw new Error(errorResponse.error || "Unbekannter Fehler beim API-Aufruf.");
       }
+
       return await response.json();
     } catch (error) {
       console.error("Error generating story:", error);
