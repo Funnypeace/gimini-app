@@ -38,6 +38,11 @@ const App: React.FC = () => {
   // Toast-Benachrichtigung
   const [notification, setNotification] = useState<string | null>(null);
 
+  // Optimiert: Caching und Token-Tracking
+  const [requestCache, setRequestCache] = useState<Map<string, StorySegment>>(new Map());
+  const [requestCount, setRequestCount] = useState(0);
+  const [dailyTokenUsage, setDailyTokenUsage] = useState(0);
+
   // Supabase User holen (nur im Login-Modus!)
   useEffect(() => {
     if (mode === 'login') {
@@ -83,11 +88,14 @@ const App: React.FC = () => {
     setGameHistory([]);
     setCurrentStory(null);
     setStep(1);
+    setRequestCount(prev => prev + 1);
     try {
       const initialSegment = await adventureService.getInitialScene(genre);
       setCurrentStory(initialSegment);
       if (initialSegment) {
         setGameHistory([initialSegment.sceneDescription]);
+        const estimatedTokens = initialSegment.sceneDescription.length / 4;
+        setDailyTokenUsage(prev => prev + estimatedTokens);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ein unbekannter Fehler ist beim Starten des Spiels aufgetreten.');
@@ -118,21 +126,51 @@ const App: React.FC = () => {
 
   const handlePlayerChoice = async (choice: string) => {
     if (!currentStory || currentStory.isGameOver) return;
+
+    const cacheKey = `${currentStory.sceneDescription.substring(0, 50)}-${choice}`;
+    if (requestCache.has(cacheKey)) {
+      const cachedStory = requestCache.get(cacheKey)!;
+      setCurrentStory(cachedStory);
+      setGameHistory(prev => [...prev, cachedStory.sceneDescription].slice(-3));
+      setStep(prev => prev + 1);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setStep(prev => prev + 1);
+    setRequestCount(prev => prev + 1);
     const previousSceneDescription = currentStory.sceneDescription;
     try {
-      const nextSegment = await adventureService.getNextScene(previousSceneDescription, choice, gameHistory);
+      const nextSegment = await adventureService.getNextScene(
+        previousSceneDescription,
+        choice,
+        gameHistory.slice(-2)
+      );
       setCurrentStory(nextSegment);
       if (nextSegment) {
-        setGameHistory(prev => [...prev, nextSegment.sceneDescription].slice(-5));
+        setRequestCache(prev => new Map(prev.set(cacheKey, nextSegment)));
+        setGameHistory(prev => [...prev, nextSegment.sceneDescription].slice(-3));
+        const estimatedTokens = (nextSegment.sceneDescription.length + choice.length) / 4;
+        setDailyTokenUsage(prev => prev + estimatedTokens);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ein unbekannter Fehler ist beim Fortsetzen der Geschichte aufgetreten.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Rate-Limit-Warnung
+  const renderRateLimitWarning = () => {
+    if (requestCount > 50) {
+      return (
+        <div style={{backgroundColor: '#fff3cd', padding: '10px', borderRadius: '5px', margin: '10px 0'}}>
+          ⚠️ Du hast heute schon {requestCount} Anfragen gemacht. Tägliches Limit: ~500k Tokens ({Math.round(dailyTokenUsage)} geschätzt verwendet)
+        </div>
+      );
+    }
+    return null;
   };
 
   // === UI Schritt 1: Auswahl Login/Gast ===
@@ -209,7 +247,7 @@ const App: React.FC = () => {
           {mode === 'login' && user && (
             <button
               onClick={async () => { await supabase.auth.signOut(); setUser(null); setMode(null); setGenre(null); setGenreConfirmed(false); setNameConfirmed(false); }}
-              className="absolute right-8 top-8 px-3 py-1 bg-sky-800 text-white rounded hover:bg-sky-700"
+              className="absolute right-8 top-8 px-3 py-1 bg-sky-800 text-white rounded rounded hover:bg-sky-700"
             >
               Logout
             </button>
@@ -336,6 +374,8 @@ const App: React.FC = () => {
           </div>
         </div>
 
+        {renderRateLimitWarning()}
+
         <StoryDisplay
           sceneDescription={currentStory.sceneDescription}
         />
@@ -424,7 +464,7 @@ const App: React.FC = () => {
       )}
 
       <footer className="mt-12 text-center text-sm text-slate-500">
-        <p>&copy; {new Date().getFullYear()} KI-Geschichtenerzähler. Unterstützt von Gemini & Imagen.</p>
+        <p>&copy; {new Date().getFullYear()} KI-Geschichtenerzähler. Unterstützt von Groq.</p>
       </footer>
     </div>
   );
