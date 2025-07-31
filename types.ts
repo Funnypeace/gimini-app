@@ -1,15 +1,13 @@
-
 export interface StorySegment {
   sceneDescription: string;
   choices: string[];
-  imagePrompt: string;
-  imageUrl?: string;
   isGameOver: boolean;
+  imageUrl?: string;
 }
 
-// Expected JSON structure from Gemini for story generation
-export interface GeminiStoryResponse {
+// Expected JSON structure from Groq for story generation
+export interface GroqStoryResponse {
   sceneDescription: string;
   choices: string[]; // Array of strings for player choices
-  imagePrompt: string; // Prompt for image generation
+  isGameOver: boolean;
 }
