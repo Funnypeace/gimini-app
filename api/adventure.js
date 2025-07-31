@@ -6,7 +6,16 @@ export default async function handler(req, res) {
   }
 
   const { prompt } = req.body;
-  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY }); // Key server-side, sicher!
+  console.log("Prompt received:", prompt); // Logging für Vercel Logs
+
+  const apiKey = process.env.GROQ_API_KEY;
+  console.log("API Key loaded:", !!apiKey); // Check, ob Key da ist (true/false)
+
+  if (!apiKey) {
+    return res.status(500).json({ error: "API Key missing on server" });
+  }
+
+  const groq = new Groq({ apiKey });
 
   try {
     const completion = await groq.chat.completions.create({
@@ -21,7 +30,13 @@ export default async function handler(req, res) {
       temperature: 0.7,
       max_tokens: 500
     });
-    const jsonResponse = JSON.parse(completion.choices[0].message.content);
+    const responseText = completion.choices[0].message.content;
+    console.log("Groq response:", responseText); // Log die Raw-Response
+
+    // Robustes Parsing: Extrahiere JSON, falls umgeben von Text
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    const jsonResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(responseText);
+
     res.status(200).json({
       sceneDescription: jsonResponse.sceneDescription,
       choices: jsonResponse.choices,
@@ -29,7 +44,7 @@ export default async function handler(req, res) {
       imageUrl: undefined
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Hoppla! Abenteuer konnte nicht gestartet werden: Der Geschichtenerzähler scheint in Gedanken versunken zu sein." });
+    console.error("Error in API:", error.message);
+    res.status(500).json({ error: `Hoppla! Abenteuer konnte nicht gestartet werden: ${error.message}` });
   }
 }
