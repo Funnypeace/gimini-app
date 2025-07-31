@@ -27,18 +27,13 @@ const App: React.FC = () => {
   // Spiel-Logik
   const [genre, setGenre] = useState<string | null>(null);
   const [genreConfirmed, setGenreConfirmed] = useState(false);
-
   const [spielstandExistiert, setSpielstandExistiert] = useState<boolean | null>(null);
   const [ladeFrageGezeigt, setLadeFrageGezeigt] = useState(false);
-
   const [currentStory, setCurrentStory] = useState<StorySegment | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [gameHistory, setGameHistory] = useState<string[]>([]);
   const [step, setStep] = useState<number>(1);
-
-  // NEU: Bild-Verzögerung
-  const [showImage, setShowImage] = useState<boolean>(true);
 
   // Toast-Benachrichtigung
   const [notification, setNotification] = useState<string | null>(null);
@@ -63,15 +58,6 @@ const App: React.FC = () => {
       setNameConfirmed(true);
     }
   }, [user, mode]);
-
-  // Bild verzögert anzeigen, jedes Mal wenn eine neue Story geladen wird
-  useEffect(() => {
-    if (currentStory) {
-      setShowImage(false);
-      const timer = setTimeout(() => setShowImage(true), 1000); // 1 Sekunden Verzögerung
-      return () => clearTimeout(timer);
-    }
-  }, [currentStory?.sceneDescription]); // sceneDescription wechselt bei neuem Text
 
   // 1. Nach Genre-Auswahl prüfen, ob ein Spielstand existiert
   useEffect(() => {
@@ -312,11 +298,11 @@ const App: React.FC = () => {
   }
 
   // Kein automatischer Spielstart mehr hier – nur noch per Button!
-
   const renderContent = () => {
     if (isLoading && !currentStory) {
       return <div className="flex flex-col items-center justify-center h-64"><LoadingSpinner /><p className="mt-4 text-lg">Dein Abenteuer wird gewoben...</p></div>;
     }
+
     if (error && !currentStory) {
         return (
             <div className="text-center p-4">
@@ -330,6 +316,7 @@ const App: React.FC = () => {
             </div>
         );
     }
+
     if (!currentStory) {
         return <p className="text-center text-xl">Etwas ist schiefgelaufen. Bitte versuche, die Seite neu zu laden.</p>;
     }
@@ -351,10 +338,10 @@ const App: React.FC = () => {
 
         <StoryDisplay
           sceneDescription={currentStory.sceneDescription}
-          imageUrl={showImage ? currentStory.imageUrl : undefined}
-          isLoadingImage={showImage ? (isLoading && !!currentStory.imagePrompt && !currentStory.imageUrl) : false}
         />
+
         {error && <div className="my-4"><ErrorMessage message={error} /></div>}
+
         {isLoading && currentStory && <div className="flex items-center justify-center my-4"><LoadingSpinner /><p className="ml-2">Die Geschichte entfaltet sich...</p></div>}
 
         {!currentStory.isGameOver && !isLoading && (
@@ -369,6 +356,7 @@ const App: React.FC = () => {
                 />
               ))}
             </div>
+
             <div className="flex gap-3 justify-center mt-4">
               <button
                 className="px-4 py-2 bg-sky-800 hover:bg-sky-600 text-white rounded shadow"
@@ -394,6 +382,7 @@ const App: React.FC = () => {
             </div>
           </>
         )}
+
         {currentStory.isGameOver && !isLoading && (
           <div className="mt-8 text-center">
             <p className="text-2xl font-semibold text-sky-400 mb-4">Das Ende</p>
@@ -423,14 +412,17 @@ const App: React.FC = () => {
           Claudios Geschichtenerzähler
         </h1>
       </header>
+
       <main className="w-full max-w-3xl bg-slate-800 bg-opacity-70 shadow-2xl rounded-xl p-6 md:p-8 backdrop-blur-md border border-slate-700">
         {renderContent()}
       </main>
+
       {notification && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg text-lg z-50 animate-fade-in">
           {notification}
         </div>
       )}
+
       <footer className="mt-12 text-center text-sm text-slate-500">
         <p>&copy; {new Date().getFullYear()} KI-Geschichtenerzähler. Unterstützt von Gemini & Imagen.</p>
       </footer>
